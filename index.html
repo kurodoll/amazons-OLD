@@ -384,6 +384,8 @@
 
 
         // ----------------------------------------------------------------------------------------| THE GAME LOOP |
+        let active_piece; // The piece that moved this turn
+
         function gameLoop(delta) {
           // Reset all the graphics.
           // I'm not actually sure how this works so this might be wrong...
@@ -413,14 +415,16 @@
               graphics_amazon.endFill();
 
               // If the piece is selected, we also want to see which moves are valid
-              for (let x = 0; x < board_size; x++) {
-                for (let y = 0; y < board_size; y++) {
-                  if (validMove({ x: amazons[i].x, y: amazons[i].y }, { x: x, y: y }, board)) {
-                    graphics_valid.drawCircle(
-                      5 + (x * tile_size) + tile_size / 2, // The 5 is for padding purposes
-                      5 + (y * tile_size) + tile_size / 2,
-                      3
-                    );
+              if (!moved) {
+                for (let x = 0; x < board_size; x++) {
+                  for (let y = 0; y < board_size; y++) {
+                    if (validMove({ x: amazons[i].x, y: amazons[i].y }, { x: x, y: y }, board)) {
+                      graphics_valid.drawCircle(
+                        5 + (x * tile_size) + tile_size / 2, // The 5 is for padding purposes
+                        5 + (y * tile_size) + tile_size / 2,
+                        3
+                      );
+                    }
                   }
                 }
               }
@@ -429,19 +433,15 @@
 
           // If we've moved, we want to highlight squares that can be burned
           if (moved) {
-            for (let i = 0; i < amazons.length; i++) {
-              if (amazons[i].owner == id) {
-                for (let x = 0; x < board_size; x++) {
-                  for (let y = 0; y < board_size; y++) {
-                    if (validMove({ x: amazons[i].x, y: amazons[i].y }, { x: x, y: y }, board)) {
-                      graphics_valid.drawRect(
-                        5 + (x * tile_size) + 5, // The 5 is for padding purposes
-                        5 + (y * tile_size) + 5,
-                        tile_size - 10,
-                        tile_size - 10
-                      );
-                    }
-                  }
+            for (let x = 0; x < board_size; x++) {
+              for (let y = 0; y < board_size; y++) {
+                if (validMove({ x: active_piece.x, y: active_piece.y }, { x: x, y: y }, board)) {
+                  graphics_valid.drawRect(
+                    5 + (x * tile_size) + 5, // The 5 is for padding purposes
+                    5 + (y * tile_size) + 5,
+                    tile_size - 10,
+                    tile_size - 10
+                  );
                 }
               }
             }
@@ -515,9 +515,9 @@
 
                     board[tile_x][tile_y].x = tile_x;
                     board[tile_x][tile_y].y = tile_y;
-                    board[tile_x][tile_y].selected = false;
 
                     moved = true;
+                    active_piece = board[tile_x][tile_y];
                   }
 
                   return;
@@ -528,15 +528,15 @@
             // At this point, the user must be selecting a tile to burn.
             // But make sure that they've moved first
             if (moved) {
-              for (let i = 0; i < amazons.length; i++) {
-                // Make sure at least one of the user's pieces has access to the selected tile
-                if (validMove({ x: amazons[i].x, y: amazons[i].y }, { x: tile_x, y: tile_y }, board)) {
-                  board[tile_x][tile_y] = { type: 'burned' };
+              // Make sure the user's moved piece has access to the selected tile
+              if (validMove({ x: active_piece.x, y: active_piece.y }, { x: tile_x, y: tile_y }, board)) {
+                board[tile_x][tile_y] = { type: 'burned' };
 
-                  // Since the user's turn is complete, send the updated board data to the server
-                  socket.emit('board', { amazons: amazons, board: board });
-                  moved = false;
-                }
+                moved = false;
+                board[active_piece.x][active_piece.y].selected = false;
+
+                // Since the user's turn is complete, send the updated board data to the server
+                socket.emit('board', { amazons: amazons, board: board });
               }
             }
           }
