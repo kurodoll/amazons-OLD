@@ -39,19 +39,6 @@ io.on('connection', function(socket) {
   let player1_id;
   let player2_id;
 
-  // Initialize user's information
-  users[user_id] = {}
-  users[user_id].username = 'anonymous';
-  sockets[user_id] = socket;
-
-  // Game settings management
-  users[user_id].game_settings = default_game_settings;
-  socket.emit('game_settings', users[user_id].game_settings);
-
-  socket.on('game_settings', function(game_settings) {
-    users[user_id].game_settings = game_settings;
-  });
-
   // Latency test
   socket.on('ping', function(start_time) {
     socket.emit('pong', start_time);
@@ -59,9 +46,21 @@ io.on('connection', function(socket) {
 
   // User has submitted a username for themself
   socket.on('username', (username) => {
+    // Initialize user's information
+    users[user_id] = {}
     users[user_id].username = username;
+    sockets[user_id] = socket;
+
     io.emit('users', users); // Send the updated user list out to all connected users
+
+    // Game settings management
+    users[user_id].game_settings = default_game_settings;
+    socket.emit('game_settings', users[user_id].game_settings);
   })
+
+  socket.on('game_settings', function(game_settings) {
+    users[user_id].game_settings = game_settings;
+  });
 
   // User has requested to play a match against another user, so notify that user
   socket.on('request_play', (opponent_id) => {

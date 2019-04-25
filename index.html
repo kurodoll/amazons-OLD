@@ -27,6 +27,15 @@
       color: white;
     }
 
+    p.subdued {
+      color: rgba(255, 255, 255, .5);
+    }
+
+    p.note_style {
+      padding-left: 5px;
+      border-left: 1px #446688 dashed;
+    }
+
     a {
       text-decoration: none;
       color: rgb(128, 192, 255);
@@ -86,6 +95,10 @@
     }
 
     hr {
+      width: 60%;
+      margin: 0;
+      margin-bottom: 5px;
+
       border: none;
       border-bottom: 1px #446688 dashed;
     }
@@ -115,6 +128,8 @@
       socket.on('game_settings', function(game_settings) {
         $('#gs_board_size').val(game_settings.board_size);
         $('#gs_pieces').val(game_settings.pieces);
+
+        $('#game_settings').show();
       });
 
       $('#change_game_settings').submit(function(e) {
@@ -555,7 +570,8 @@
       <tr>
         <td width='20%'>
           <div>
-            <p><b><u>Notification Box</u></b> | <span id='ping'></span></p>
+            <p><b>Notification Box</b> | <span id='ping'></span></p>
+            <hr />
             <p id='request_box'></p>
           </div>
 
@@ -568,7 +584,8 @@
           </div>
 
           <div id='user_list' style='display: none;'>
-            <p><b><u>Users Online</u></b></p>
+            <p><b>Users Online</b></p>
+            <hr />
             <p>Click a name to invite them to a match</p>
 
             <p id='users_online'></p>
@@ -581,18 +598,25 @@
             <span id='current_turn'></span>
           </p>
 
-          <div id='game'></div>
+          <div id='game'>
+            <p class='subdued note_style'>
+              Game will load when you start a match with another player.<br />
+              First enter a username on the left, and then click a player's name in the user list to request a match.<br />
+              <br />
+              To play single-player, open the site in a second tab and enter a different username.
+            </p>
+          </div>
         </td>
 
         <td width='30%'>
-          <div>
+          <div id='game_settings' style='display: none;'>
             <p><b>Game Settings</b></p>
             <hr />
 
-            <p><u>Board Size</u></p>
+            <p>Board Size</p>
             <input id='gs_board_size' type='text' />
 
-            <p><u>Pieces</u></p>
+            <p>Pieces</p>
             <textarea id='gs_pieces'></textarea>
 
             <form id='change_game_settings'>
