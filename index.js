@@ -12,10 +12,14 @@ let sockets = {}; // Stores client sockets, again with user id as the key
 let default_game_settings = {
   board_size: 10,
   pieces: JSON.stringify([
-    {type: 'amazon', x: 0, y: 0, owner: 0, selected: false},
-    {type: 'amazon', x: 0, y: 9, owner: 0, selected: false},
-    {type: 'amazon', x: 9, y: 0, owner: 1, selected: false},
-    {type: 'amazon', x: 9, y: 9, owner: 1, selected: false}
+    {type: 'amazon', x: 3, y: 0, owner: 0, selected: false},
+    {type: 'amazon', x: 6, y: 0, owner: 0, selected: false},
+    {type: 'amazon', x: 0, y: 3, owner: 0, selected: false},
+    {type: 'amazon', x: 9, y: 3, owner: 0, selected: false},
+    {type: 'amazon', x: 3, y: 9, owner: 1, selected: false},
+    {type: 'amazon', x: 6, y: 9, owner: 1, selected: false},
+    {type: 'amazon', x: 0, y: 6, owner: 1, selected: false},
+    {type: 'amazon', x: 9, y: 6, owner: 1, selected: false}
   ])
 }
 
