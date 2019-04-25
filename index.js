@@ -49,8 +49,17 @@ io.on('connection', function(socket) {
 
     // Notify both players of the participating players' IDs, and who is starting player
     if (sockets[player1_id] && sockets[player2_id]) {
-      sockets[player1_id].emit('game_starting', { p1: player1_id, p2: player2_id, starting_player: true });
-      sockets[player2_id].emit('game_starting', { p1: player1_id, p2: player2_id, starting_player: false });
+      sockets[player1_id].emit('game_starting', {
+        p1: player1_id,
+        p2: player2_id,
+        opponent_name: users[player2_id].username,
+        starting_player: true });
+
+      sockets[player2_id].emit('game_starting', {
+        p1: player1_id,
+        p2: player2_id,
+        opponent_name: users[player1_id].username,
+        starting_player: false });
     }
   })
 
