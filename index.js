@@ -78,8 +78,11 @@ io.on('connection', function(socket) {
   // User has accepted a match requested by another user.
   // If the user declines, no notification is sent to the requester
   socket.on('accept_play', (opponent_id) => {
+    opponent_id = parseInt(opponent_id);
+
     player1_id = user_id;
     player2_id = opponent_id;
+    turn = player1_id;
 
     let pieces_fixed = JSON.parse(users[opponent_id].game_settings.pieces);
     for (let i = 0; i < pieces_fixed.length; i++) {
@@ -97,7 +100,7 @@ io.on('connection', function(socket) {
         p1: player1_id,
         p2: player2_id,
         opponent_name: users[player2_id].username,
-        starting_player: true,
+        starting_player: turn,
         board_size: users[opponent_id].game_settings.board_size,
         pieces: pieces_fixed });
 
@@ -105,7 +108,7 @@ io.on('connection', function(socket) {
         p1: player1_id,
         p2: player2_id,
         opponent_name: users[player1_id].username,
-        starting_player: false,
+        starting_player: turn,
         board_size: users[opponent_id].game_settings.board_size,
         pieces: pieces_fixed });
     }
@@ -122,6 +125,22 @@ io.on('connection', function(socket) {
     if (sockets[player1_id] && sockets[player2_id]) {
       sockets[player1_id].emit('board', board);
       sockets[player2_id].emit('board', board);
+    }
+  })
+
+  socket.on('turn_done', (player_id) => {
+    let turn;
+
+    if (player_id == player1_id) {
+      turn = player2_id;
+    }
+    else {
+      turn = player1_id;
+    }
+
+    if (sockets[player1_id] && sockets[player2_id]) {
+      sockets[player1_id].emit('turn', turn);
+      sockets[player2_id].emit('turn', turn);
     }
   })
 
