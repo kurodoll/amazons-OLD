@@ -255,6 +255,9 @@
         if (my_turn) {
           $('#current_turn').html('<b>It is your turn!</b>');
         }
+        else {
+          $('#current_turn').html('It is the opponent\'s turn.');
+        }
 
         // Populate the board as a 2D array with preset data
         let board = [];
