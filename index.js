@@ -1,9 +1,14 @@
-var app = require('express')();
-var http = require('http').Server(app);
-var io = require('socket.io')(http, {
+const express = require('express');
+const path = require('path');
+
+const app = require('express')();
+const http = require('http').Server(app);
+const io = require('socket.io')(http, {
   'pingInterval': 2000,
   'pingTimeout': 5000
 });
+
+app.use(express.static(path.join(__dirname, 'public')));
 
 let id = 0;       // Used to keep a unique serial for each user that connects
 let users = {};   // Stores user information, with their id as the key

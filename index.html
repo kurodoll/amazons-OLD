@@ -194,6 +194,7 @@
       // Someone has a requested a match with the user
       socket.on('request_to_play', function(user) {
         $('#request_box').html(user.username + ' wants to play with you! <a id="' + user.id + '" href="#">Accept</a> or <a id="decline" href="#">Decline</a>');
+        $('#request_sound')[0].play();
       });
 
       // User has recieved a request for a match and is either accepting or declining
@@ -307,6 +308,8 @@
       // ======================================================================================== //
 
       socket.on('game_starting', function(game_data) {
+        $('#start_sound')[0].play();
+
         // Clear any requests that are being shown
         $('#request_box').html('');
 
@@ -553,6 +556,7 @@
         // Server has sent board data, so the active user must have switched, and we need to renew our data
         socket.on('board', function(data) {
           my_turn = !my_turn;
+          $('#piece_move_sound')[0].play();
 
           if (my_turn) {
             $('#current_turn').html('<b>It is your turn!</b>');
@@ -634,5 +638,9 @@
         </td>
       </tr>
     </table>
+
+    <audio id='piece_move_sound' src='/piece.wav'></audio>
+    <audio id='request_sound' src='/hai.wav'></audio>
+    <audio id='start_sound' src='/start.mp3'></audio>
   </body>
 </html>
