@@ -1,6 +1,9 @@
 var app = require('express')();
 var http = require('http').Server(app);
-var io = require('socket.io')(http);
+var io = require('socket.io')(http, {
+  'pingInterval': 2000,
+  'pingTimeout': 5000
+});
 
 let id = 0;       // Used to keep a unique serial for each user that connects
 let users = {};   // Stores user information, with their id as the key
@@ -26,6 +29,11 @@ io.on('connection', function(socket) {
   users[user_id] = {}
   users[user_id].username = 'anonymous';
   sockets[user_id] = socket;
+
+  // Latency test
+  socket.on('ping', function(start_time) {
+    socket.emit('pong', start_time);
+  });
 
   // User has submitted a username for themself
   socket.on('username', (username) => {

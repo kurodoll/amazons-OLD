@@ -82,7 +82,21 @@
   <script src='https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.8.7/pixi.min.js'></script>
   <script>
     $(function() {
+      // ========================================================================================== //
+      //                                                                       // Connection Stuff //
+      // ======================================================================================== //
+
       let socket = io();
+
+      socket.on('pong', function(ms) {
+        $('#ping').html('Latency <span id="led">' + ms + 'ms</span>');
+
+        if (ms > 255) {
+          ms = 255;
+        }
+
+        $('#led').css('border-bottom', '2px rgba(' + ms + ', ' + (255 - ms) + ', 0, .7) dotted');
+      });
 
 
 
@@ -496,7 +510,7 @@
       <tr>
         <td width='20%'>
           <div>
-            <p><b><u>Notification Box</u></b></p>
+            <p><b><u>Notification Box</u></b> | <span id='ping'></span></p>
             <p id='request_box'></p>
           </div>
 
