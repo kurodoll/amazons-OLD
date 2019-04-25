@@ -270,7 +270,7 @@
           $('#current_turn').html('<b>It is your turn!</b>');
         }
         else {
-          $('#current_turn').html('It is the opponent\'s turn.');
+          $('#current_turn').html('It is your opponent\'s turn.');
         }
 
         // Populate the board as a 2D array with preset data
@@ -387,6 +387,26 @@
             }
           }
 
+          // If we've moved, we want to highlight squares that can be burned
+          if (moved) {
+            for (let i = 0; i < amazons.length; i++) {
+              if (amazons[i].owner == id) {
+                for (let x = 0; x < board_size; x++) {
+                  for (let y = 0; y < board_size; y++) {
+                    if (validMove({ x: amazons[i].x, y: amazons[i].y }, { x: x, y: y }, board)) {
+                      graphics_valid.drawRect(
+                        5 + (x * tile_size) + 5, // The 5 is for padding purposes
+                        5 + (y * tile_size) + 5,
+                        tile_size - 10,
+                        tile_size - 10
+                      );
+                    }
+                  }
+                }
+              }
+            }
+          }
+
           // Draw "burned" tiles
           for (let x = 0; x < board_size; x++) {
             for (let y = 0; y < board_size; y++) {
@@ -453,9 +473,9 @@
                     board[amazons[i].x][amazons[i].y] = { type: 'empty' };
                     board[tile_x][tile_y] = amazons[i];
 
-                    amazons[i].x = tile_x;
-                    amazons[i].y = tile_y;
-                    amazons[i].selected = false;
+                    board[tile_x][tile_y].x = tile_x;
+                    board[tile_x][tile_y].y = tile_y;
+                    board[tile_x][tile_y].selected = false;
 
                     moved = true;
                   }
