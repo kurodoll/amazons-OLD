@@ -36,7 +36,9 @@ io.on('connection', function(socket) {
   // User has requested to play a match against another user, so notify that user
   socket.on('request_play', (opponent_id) => {
     // Send the info of the requesting user to the other user
-    sockets[opponent_id].emit('request_to_play', { username: users[user_id].username, id: user_id });
+    if (sockets[opponent_id]) {
+      sockets[opponent_id].emit('request_to_play', { username: users[user_id].username, id: user_id });
+    }
   })
 
   // User has accepted a match requested by another user.
@@ -46,8 +48,10 @@ io.on('connection', function(socket) {
     player2_id = opponent_id;
 
     // Notify both players of the participating players' IDs, and who is starting player
-    sockets[player1_id].emit('game_starting', { p1: player1_id, p2: player2_id, starting_player: true });
-    sockets[player2_id].emit('game_starting', { p1: player1_id, p2: player2_id, starting_player: false });
+    if (sockets[player1_id] && sockets[player2_id]) {
+      sockets[player1_id].emit('game_starting', { p1: player1_id, p2: player2_id, starting_player: true });
+      sockets[player2_id].emit('game_starting', { p1: player1_id, p2: player2_id, starting_player: false });
+    }
   })
 
   // Used to sync who is player 1 and who is player 2 between both players of a match
@@ -58,8 +62,10 @@ io.on('connection', function(socket) {
 
   // Syncs new board data to both players of a match
   socket.on('board', (board) => {
-    sockets[player1_id].emit('board', board);
-    sockets[player2_id].emit('board', board);
+    if (sockets[player1_id] && sockets[player2_id]) {
+      sockets[player1_id].emit('board', board);
+      sockets[player2_id].emit('board', board);
+    }
   })
 
   // User has disconnected, so clean up all their data to prevent memory leaking
