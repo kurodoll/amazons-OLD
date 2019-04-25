@@ -1,0 +1,529 @@
+<!doctype html>
+
+<html>
+  <head>
+    <title>Game of Amazons</title>
+  </head>
+
+  <style>
+    body {
+      height: 100vh;
+      background: linear-gradient(rgb(25, 50, 75), rgb(6, 12, 24));
+    }
+
+    div {
+      padding: 5px;
+      margin-bottom: 10px;
+
+      background: linear-gradient(90deg, rgba(0, 0, 0, .2), transparent);
+    }
+
+    p {
+      padding: 0;
+      margin: 0;
+      margin-bottom: 5px;
+
+      font: 10px Verdana;
+      color: white;
+    }
+
+    a {
+      text-decoration: none;
+      color: rgb(128, 192, 255);
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    table {
+      width: 100%;
+    }
+
+    td {
+      vertical-align: top;
+    }
+
+    input {
+      font: 10px Verdana;
+      color: white;
+    }
+
+    input[type=text] {
+      padding: 5px;
+
+      background: rgba(0, 0, 0, .2);
+      border: none;
+    }
+
+    input[type=text]:hover {
+      background: rgba(0, 0, 0, .5)
+    }
+
+    input[type=submit] {
+      padding: 4px;
+      padding-left: 20px;
+      padding-right: 20px;
+
+      background: rgba(0, 0, 0, .2);
+      border: 1px grey solid;
+
+      cursor: pointer;
+    }
+
+    input[type=submit]:hover {
+      background: rgba(255, 128, 0, .1);
+      border: 1px orange solid;
+    }
+  </style>
+
+  <script src='https://code.jquery.com/jquery-3.4.0.min.js'></script>
+  <script src='/socket.io/socket.io.js'></script>
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.8.7/pixi.min.js'></script>
+  <script>
+    $(function() {
+      let socket = io();
+
+
+
+      // ========================================================================================== //
+      //                                                                 // User Interaction Stuff //
+      // ======================================================================================== //
+
+      // The ID of the user. Set to -1 until we actually get our ID from the server
+      let id = -1;
+
+      // Server has sent the user their ID
+      socket.on('id', function(user_id) {
+        id = user_id;
+      });
+
+      // User has submitted a username
+      $('#username_choose').submit(function(e) {
+        e.preventDefault();
+        socket.emit('username', $('#username_field').val());
+        return false;
+      });
+
+      // Server has sent a list of currently online users
+      socket.on('users', function(users) {
+        let username_list = '';
+
+        // Create an HTML list of online users, where each name can be clicked to request a match with them
+        for (let user in users) {
+          username_list += '<a id="' + user + '" href="#">' + users[user].username + '</a><br />';
+        }
+
+        // Update the user list and ensure that the box is visible, since it's hidden by default
+        $('#users_online').html(username_list);
+        $('#user_list').show();
+      });
+
+      // User has clicked a name in the Users Online box, meaning they want to request a match
+      $('#users_online').on('click', 'a', function(e) {
+        socket.emit('request_play', e.target.id); // The <a> will have the relevant user's ID as the element ID
+      });
+
+      // Someone has a requested a match with the user
+      socket.on('request_to_play', function(user) {
+        $('#request_box').html(user.username + ' wants to play with you! <a id="' + user.id + '" href="#">Accept</a> or <a id="decline" href="#">Decline</a>');
+      });
+
+      // User has recieved a request for a match and is either accepting or declining
+      $('#request_box').on('click', 'a', function(e) {
+        if (e.target.id == 'decline') {
+          $('#request_box').html('');
+        }
+        else {
+          socket.emit('accept_play', e.target.id); // The <a> will have the relevant user's ID as the element ID
+        }
+      });
+
+
+
+      // ========================================================================================== //
+      //                                                                   // Game Logic Functions //
+      // ======================================================================================== //
+
+      // Determines whether a piece can move to a certain tile
+      function validMove(from, to, board) {
+        // A piece can't move to its own tile
+        if (from.x == to.x && from.y == to.y) {
+          return false;
+        }
+
+        // Handle vertical movements (where y changes)
+        if (from.x == to.x) {
+          // Get the starting and ending y coordinates, ensuring that the start is lower than the end
+          let start = (from.y > to.y ? to.y : from.y);
+          let end = (from.y > to.y ? from.y : to.y);
+
+          // A small hack to make things work correctly
+          if (from.y < to.y) {
+            start += 1;
+            end += 1;
+          }
+
+          // Look through each tile along the path and ensure that it is empty
+          for (let i = start; i < end; i++) {
+            if (board[from.x][i].type != 'empty') {
+              return false;
+            }
+          }
+
+          // No obstacles, so the move is valid!
+          return true;
+        }
+
+        // Handle horizontal movements (where x changes)
+        if (from.y == to.y) {
+          // Get the starting and ending x coordinates, ensuring that the start is lower than the end
+          let start = (from.x > to.x ? to.x : from.x);
+          let end = (from.x > to.x ? from.x : to.x);
+
+          // A small hack to make things work correctly
+          if (from.x < to.x) {
+            start += 1;
+            end += 1;
+          }
+
+          // Look through each tile along the path and ensure that it is empty
+          for (let i = start; i < end; i++) {
+            if (board[i][from.y].type != 'empty') {
+              return false;
+            }
+          }
+
+          // No obstacles, so the move is valid!
+          return true;
+        }
+        
+        // Handle diagonal movements
+        if (Math.abs(from.x - to.x) == Math.abs(from.y - to.y)) {
+          // We iterate over the path using delta movements
+          let x_change = 1;
+          let y_change = 1;
+
+          if (from.x > to.x) {
+            x_change = -1;
+          }
+          if (from.y > to.y) {
+            y_change = -1;
+          }
+
+          let x = from.x;
+          let y = from.y;
+
+          // Look through each tile along the path and ensure that it is empty
+          while (true) {
+            x += x_change;
+            y += y_change;
+
+            if (board[x][y].type != 'empty') {
+              return false;
+            }
+
+            if (x == to.x && y == to.y) {
+              return true;
+            }
+          }
+        }
+
+        // No other movement types are valid, so this move mustn't be valid
+        return false;
+      }
+
+
+
+      // ========================================================================================== //
+      //                                                                        // Game Core Logic //
+      // ======================================================================================== //
+
+      socket.on('game_starting', function(game_data) {
+        // Clear any requests that are being shown
+        $('#request_box').html('');
+
+        // Sync player data, such as who is player 1 and who is player 2
+        socket.emit('set_players', game_data);
+
+
+        // ----------------------------------------------------------------------------------------| INITIALIZE BOARD DATA |
+        const board_size = 10;
+        const tile_size = 40;
+        let my_turn = game_data.starting_player; // We get sent either true or false for this value
+
+        if (my_turn) {
+          $('#current_turn').html('<b>It is your turn!</b>');
+        }
+
+        // Populate the board as a 2D array with preset data
+        let board = [];
+
+        for (let i = 0; i < board_size; i++) {
+          let column = Array(board_size).fill({ type: 'empty' }); // Each tile is represented as an object that has at least a type
+          board.push(column);
+        }
+
+        // Set up the positions of the pieces, which we call Amazons
+        let amazons = [
+          {type: 'amazon', x: 0, y: 0, owner: game_data.p1, selected: false},
+          {type: 'amazon', x: 0, y: 9, owner: game_data.p1, selected: false},
+          {type: 'amazon', x: 9, y: 0, owner: game_data.p2, selected: false},
+          {type: 'amazon', x: 9, y: 9, owner: game_data.p2, selected: false}
+        ];
+
+        // We have an array to store the Amazons, but also place the Amazons in the board data.
+        // We ensure that the data always works as a reference,
+        // so that the piece data can be accessed in whichever way is more efficient
+        for (let i = 0; i < amazons.length; i++) {
+          board[amazons[i].x][amazons[i].y] = amazons[i];
+        }
+
+        // Set up some colours for each player
+        let colours = {};
+        colours[game_data.p1] = { hex: 0x00FF88, css_hex: '#00FF88', name: 'Green' };
+        colours[game_data.p2] = { hex: 0x0088FF, css_hex: '#0088FF', name: 'Blue' };
+
+        $('#info').html('You are player <span style="color: ' + colours[id].css_hex + ';">' + colours[id].name + '</span> - ');
+
+
+        // ----------------------------------------------------------------------------------------| INITIALIZE PIXI.JS |
+        let app = new PIXI.Application({
+          width: board_size * tile_size + 10, // The 10 is for padding purposes
+          height: board_size * tile_size + 10,
+          transparent: true
+        });
+
+        $('#game').html(app.view)
+        app.ticker.add(delta => gameLoop(delta));
+
+        // Graphics for the board itself
+        let graphics_board = new PIXI.Graphics();
+        graphics_board.lineStyle(1, 0x446688, 1);
+
+        for (let x = 0; x < board_size; x++) {
+          for (let y = 0; y < board_size; y++) {
+            graphics_board.drawRect(
+              5 + (x * tile_size), // The 5 is for padding purposes
+              5 + (y * tile_size),
+              tile_size,
+              tile_size);
+          }
+        }
+
+        // Graphics for the Amazon pieces
+        let graphics_amazon = new PIXI.Graphics();
+
+        // Graphics for "burned" tiles
+        let graphics_burned = new PIXI.Graphics();
+
+        // Graphics for tiles that are valid to move to
+        let graphics_valid = new PIXI.Graphics();
+
+        app.stage.addChild(graphics_board);
+        app.stage.addChild(graphics_amazon);
+        app.stage.addChild(graphics_burned);
+        app.stage.addChild(graphics_valid);
+
+
+        // ----------------------------------------------------------------------------------------| THE GAME LOOP |
+        function gameLoop(delta) {
+          // Reset all the graphics.
+          // I'm not actually sure how this works so this might be wrong...
+          // But it works!
+          graphics_amazon.clear();
+          graphics_burned.clear();
+          graphics_burned.lineStyle(1, 0xFF0000, 1);
+          graphics_valid.clear();
+          graphics_valid.lineStyle(1, 0xFFFFFF, 1);
+
+          for (let i = 0; i < amazons.length; i++) {
+            // Set the colour of the piece depending on who it belongs to
+            graphics_amazon.lineStyle(2, colours[amazons[i].owner].hex, 1);
+
+            // If the piece is selected, fill it in with colour
+            if (amazons[i].selected) {
+              graphics_amazon.beginFill(colours[amazons[i].owner].hex);
+            }
+
+            graphics_amazon.drawCircle(
+              5 + (amazons[i].x * tile_size) + tile_size / 2, // The 5 is for padding purposes
+              5 + (amazons[i].y * tile_size) + tile_size / 2,
+              tile_size / 3
+            );
+
+            if (amazons[i].selected) {
+              graphics_amazon.endFill();
+
+              // If the piece is selected, we also want to see which moves are valid
+              for (let x = 0; x < board_size; x++) {
+                for (let y = 0; y < board_size; y++) {
+                  if (validMove({ x: amazons[i].x, y: amazons[i].y }, { x: x, y: y }, board)) {
+                    graphics_valid.drawCircle(
+                      5 + (x * tile_size) + tile_size / 2, // The 5 is for padding purposes
+                      5 + (y * tile_size) + tile_size / 2,
+                      3
+                    );
+                  }
+                }
+              }
+            }
+          }
+
+          // Draw "burned" tiles
+          for (let x = 0; x < board_size; x++) {
+            for (let y = 0; y < board_size; y++) {
+              if (board[x][y].type == 'burned') {
+                graphics_burned.beginFill(0xFF0000, .1);
+
+                graphics_burned.drawRect(
+                  5 + (x * tile_size), // The 5 is for padding purposes
+                  5 + (y * tile_size),
+                  tile_size,
+                  tile_size
+                );
+
+                graphics_burned.endFill();
+              }
+            }
+          }
+        }
+
+
+        // ----------------------------------------------------------------------------------------| GAMEPLAY HANDLING |
+        let moved = false; // Whether the user has moved a piece, therefore being on the second part of their turn
+
+        // If the user clicks the game, we want to react appropriately
+        $('#game').click(function (e) {
+          if (my_turn) { // We only want to let the user do anything if it's actually their turn
+            // Get the mouse position
+            var element = $(this);
+            var mouse_x = e.pageX - element.offset().left;
+            var mouse_y = e.pageY - element.offset().top;
+
+            // Determine which tile was clicked, if any
+            tile_x = Math.floor((mouse_x - 10) / tile_size); // The 5 is to account for padding
+            tile_y = Math.floor((mouse_y - 10) / tile_size);
+
+            if (tile_x < 0 || tile_x >= board_size || tile_y < 0 || tile_y >= board_size) {
+              // The user didn't click on a tile
+              return;
+            }
+
+            if (!moved) {
+              // We haven't moved yet, so we need to see whether the user selected a piece, or a spot to move
+              if (board[tile_x][tile_y].type == 'amazon') {
+                // The user has selected a piece
+                if (board[tile_x][tile_y].owner == id) { // Make sure we own the piece
+                  old_state = board[tile_x][tile_y].selected;
+
+                  // Make sure all the other pieces are deselected before selecting this one
+                  for (let i = 0; i < amazons.length; i++) {
+                    amazons[i].selected = false;
+                  }
+
+                  board[tile_x][tile_y].selected = !old_state;
+                }
+
+                return;
+              }
+
+              // At this point, the user must be selecting a tile to move to
+              for (let i = 0; i < amazons.length; i++) {
+                if (amazons[i].selected) {
+                  if (validMove({ x: amazons[i].x, y: amazons[i].y }, { x: tile_x, y: tile_y }, board)) {
+                    // Update the Amazon's position, both on the board and in its internal data
+                    board[amazons[i].x][amazons[i].y] = { type: 'empty' };
+                    board[tile_x][tile_y] = amazons[i];
+
+                    amazons[i].x = tile_x;
+                    amazons[i].y = tile_y;
+                    amazons[i].selected = false;
+
+                    moved = true;
+                  }
+
+                  return;
+                }
+              }
+            }
+
+            // At this point, the user must be selecting a tile to burn.
+            // But make sure that they've moved first
+            if (moved) {
+              for (let i = 0; i < amazons.length; i++) {
+                // Make sure at least one of the user's pieces has access to the selected tile
+                if (validMove({ x: amazons[i].x, y: amazons[i].y }, { x: tile_x, y: tile_y }, board)) {
+                  board[tile_x][tile_y] = { type: 'burned' };
+
+                  // Since the user's turn is complete, send the updated board data to the server
+                  socket.emit('board', { amazons: amazons, board: board });
+                  moved = false;
+                }
+              }
+            }
+          }
+        });
+
+        // Server has sent board data, so the active user must have switched, and we need to renew our data
+        socket.on('board', function(data) {
+          my_turn = !my_turn;
+
+          if (my_turn) {
+            $('#current_turn').html('<b>It is your turn!</b>');
+          }
+          else {
+            $('#current_turn').html('It is the opponent\'s turn.');
+          }
+
+          board = data.board;
+          amazons = data.amazons;
+
+          // We need to do this so that the object references are set correctly
+          for (let i = 0; i < amazons.length; i++) {
+            board[amazons[i].x][amazons[i].y] = amazons[i];
+          }
+        });
+      });
+    });
+  </script>
+
+  <body>
+    <table>
+      <tr>
+        <td width='20%'>
+          <div>
+            <p><b><u>Notification Box</u></b></p>
+            <p id='request_box'></p>
+          </div>
+
+          <div>
+            <form id='username_choose'>
+              <p>Choose a username</p>
+              <input type='text' id='username_field' />
+              <input type='submit' value='Update' />
+            </form>
+          </div>
+
+          <div id='user_list' style='display: none;'>
+            <p><b><u>Users Online</u></b></p>
+            <p>Click a name to invite them to a match</p>
+
+            <p id='users_online'></p>
+          </div>
+        </td>
+
+        <td width='60%'>
+          <p>
+            <span id='info'></span>
+            <span id='current_turn'></span>
+          </p>
+
+          <div id='game'></div>
+        </td>
+
+        <td width='20%'></td>
+      </tr>
+    </table>
+  </body>
+</html>
