@@ -9,6 +9,16 @@ let id = 0;       // Used to keep a unique serial for each user that connects
 let users = {};   // Stores user information, with their id as the key
 let sockets = {}; // Stores client sockets, again with user id as the key
 
+let default_game_settings = {
+  board_size: 10,
+  pieces: JSON.stringify([
+    {type: 'amazon', x: 0, y: 0, owner: 0, selected: false},
+    {type: 'amazon', x: 0, y: 9, owner: 0, selected: false},
+    {type: 'amazon', x: 9, y: 0, owner: 1, selected: false},
+    {type: 'amazon', x: 9, y: 9, owner: 1, selected: false}
+  ])
+}
+
 app.get('/', function(req, res) {
   res.sendFile(__dirname + '/index.html');
 });
@@ -29,6 +39,14 @@ io.on('connection', function(socket) {
   users[user_id] = {}
   users[user_id].username = 'anonymous';
   sockets[user_id] = socket;
+
+  // Game settings management
+  users[user_id].game_settings = default_game_settings;
+  socket.emit('game_settings', users[user_id].game_settings);
+
+  socket.on('game_settings', function(game_settings) {
+    users[user_id].game_settings = game_settings;
+  });
 
   // Latency test
   socket.on('ping', function(start_time) {
@@ -55,19 +73,33 @@ io.on('connection', function(socket) {
     player1_id = user_id;
     player2_id = opponent_id;
 
+    let pieces_fixed = JSON.parse(users[opponent_id].game_settings.pieces);
+    for (let i = 0; i < pieces_fixed.length; i++) {
+      if (pieces_fixed[i].owner == 0) {
+        pieces_fixed[i].owner = player1_id;
+      }
+      else {
+        pieces_fixed[i].owner = player2_id;
+      }
+    }
+
     // Notify both players of the participating players' IDs, and who is starting player
     if (sockets[player1_id] && sockets[player2_id]) {
       sockets[player1_id].emit('game_starting', {
         p1: player1_id,
         p2: player2_id,
         opponent_name: users[player2_id].username,
-        starting_player: true });
+        starting_player: true,
+        board_size: users[opponent_id].game_settings.board_size,
+        pieces: pieces_fixed });
 
       sockets[player2_id].emit('game_starting', {
         p1: player1_id,
         p2: player2_id,
         opponent_name: users[player1_id].username,
-        starting_player: false });
+        starting_player: false,
+        board_size: users[opponent_id].game_settings.board_size,
+        pieces: pieces_fixed });
     }
   })
 

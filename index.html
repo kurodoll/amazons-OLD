@@ -49,11 +49,20 @@
       color: white;
     }
 
-    input[type=text] {
+    input[type=text], textarea {
       padding: 5px;
+      margin-bottom: 5px;
 
       background: rgba(0, 0, 0, .2);
       border: none;
+    }
+
+    textarea {
+      width: 100%;
+      height: 100px;
+
+      font: 11px Consolas;
+      color: white;
     }
 
     input[type=text]:hover {
@@ -74,6 +83,11 @@
     input[type=submit]:hover {
       background: rgba(255, 128, 0, .1);
       border: 1px orange solid;
+    }
+
+    hr {
+      border: none;
+      border-bottom: 1px #446688 dashed;
     }
   </style>
 
@@ -96,6 +110,22 @@
         }
 
         $('#led').css('border-bottom', '2px rgba(' + ms + ', ' + (255 - ms) + ', 0, .7) dotted');
+      });
+
+      socket.on('game_settings', function(game_settings) {
+        $('#gs_board_size').val(game_settings.board_size);
+        $('#gs_pieces').val(game_settings.pieces);
+      });
+
+      $('#change_game_settings').submit(function(e) {
+        e.preventDefault();
+
+        socket.emit('game_settings', {
+          board_size: $('#gs_board_size').val(),
+          pieces: $('#gs_pieces').val()
+        });
+
+        return false;
       });
 
 
@@ -262,7 +292,7 @@
 
 
         // ----------------------------------------------------------------------------------------| INITIALIZE BOARD DATA |
-        const board_size = 10;
+        const board_size = parseInt(game_data.board_size);
         const tile_size = 40;
         let my_turn = game_data.starting_player; // We get sent either true or false for this value
 
@@ -282,12 +312,7 @@
         }
 
         // Set up the positions of the pieces, which we call Amazons
-        let amazons = [
-          {type: 'amazon', x: 0, y: 0, owner: game_data.p1, selected: false},
-          {type: 'amazon', x: 0, y: 9, owner: game_data.p1, selected: false},
-          {type: 'amazon', x: 9, y: 0, owner: game_data.p2, selected: false},
-          {type: 'amazon', x: 9, y: 9, owner: game_data.p2, selected: false}
-        ];
+        let amazons = game_data.pieces;
 
         // We have an array to store the Amazons, but also place the Amazons in the board data.
         // We ensure that the data always works as a reference,
@@ -550,7 +575,7 @@
           </div>
         </td>
 
-        <td width='60%'>
+        <td width='50%'>
           <p>
             <span id='info'></span>
             <span id='current_turn'></span>
@@ -559,7 +584,22 @@
           <div id='game'></div>
         </td>
 
-        <td width='20%'></td>
+        <td width='30%'>
+          <div>
+            <p><b>Game Settings</b></p>
+            <hr />
+
+            <p><u>Board Size</u></p>
+            <input id='gs_board_size' type='text' />
+
+            <p><u>Pieces</u></p>
+            <textarea id='gs_pieces'></textarea>
+
+            <form id='change_game_settings'>
+              <input type='submit' value='Save Changes' />
+            </form>
+          </div>
+        </td>
       </tr>
     </table>
   </body>
