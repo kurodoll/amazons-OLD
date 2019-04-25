@@ -125,6 +125,14 @@
         $('#led').css('border-bottom', '2px rgba(' + ms + ', ' + (255 - ms) + ', 0, .7) dotted');
       });
 
+      socket.on('disconnect', function() {
+        $('#ping').html('<span id="led">Connection Lost</span>');
+        $('#led').css('border-bottom', '2px rgba(255, 0, 0, .7) dotted');
+
+        $('#user_list').hide();
+        $('#game_settings').hide();
+      });
+
       socket.on('game_settings', function(game_settings) {
         $('#gs_board_size').val(game_settings.board_size);
         $('#gs_pieces').val(game_settings.pieces);
