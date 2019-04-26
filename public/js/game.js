@@ -246,7 +246,7 @@ $(function() {
     colours[game_data.p1] = { hex: 0x00FF88, css_hex: '#00FF88', name: 'Green' };
     colours[game_data.p2] = { hex: 0x0088FF, css_hex: '#0088FF', name: 'Blue' };
 
-    let opponent_name = (id == game_data.p1 ? game_data.p1_name : game_data.p2_name);
+    let opponent_name = (id == game_data.p1 ? game_data.p2_name : game_data.p1_name);
     $('#info').html('(Game#' + game_id + ') You are player <span style="color: ' + colours[id].css_hex + ';">' + colours[id].name + '</span>, playing against ' + opponent_name + ' - ');
 
 
