@@ -4,16 +4,22 @@ body {
 }
 
 div {
+  margin: 3px;
   padding: 5px;
-  margin-bottom: 10px;
 
   background: linear-gradient(90deg, rgba(0, 0, 0, .2), transparent);
 }
 
-p, pre {
-  padding: 0;
+div.no_style {
   margin: 0;
-  margin-bottom: 5px;
+  padding: 0;
+
+  background: none;
+}
+
+p, pre {
+  margin: 0;
+  padding: 3px;
 
   font: 10px Verdana;
   color: white;
@@ -34,6 +40,11 @@ p.note_style {
   border-left: 1px #446688 dashed;
 }
 
+p#result_info {
+  margin-top: 10px;
+  font-weight: bold;
+}
+
 a {
   text-decoration: none;
   color: rgb(128, 192, 255);
@@ -45,6 +56,8 @@ a:hover {
 
 table {
   width: 100%;
+  border-collapse: collapse;
+  padding: 0;
 }
 
 td {

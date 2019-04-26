@@ -39,18 +39,41 @@
         </td>
 
         <td width='50%'>
-          <p>
-            <span id='info'></span>
-            <span id='current_turn'></span>
-          </p>
+          <div>
+            <table>
+              <tr>
+                <td colspan='2'>
+                  <div id='top_info' style='display: none;'>
+                    <p>
+                      <span id='info'></span>
+                      <span id='current_turn'></span>
+                    </p>
+                  </div>
+                </td>
+              </tr>
 
-          <div id='game'>
-            <p class='subdued note_style'>
-              Game will load when you start a match with another player.<br />
-              First enter a username on the left, and then click a player's name in the user list to request a match.<br />
-              <br />
-              To play single-player, open the site in a second tab and enter a different username.
-            </p>
+              <tr>
+                <td id='game_parent'>
+                  <div id='game' class='no_style'>
+                    <p class='subdued note_style'>
+                      Game will load when you start a match with another player.<br />
+                      First enter a username on the left, and then click a player's name in the user list to request a match.<br />
+                      <br />
+                      To play single-player, open the site in a second tab and enter a different username.
+                    </p>
+                  </div>
+                </td>
+
+                <td id='board_info_td' style='display: none;'>
+                  <p><b>Board Info</b></p>
+                  <hr />
+                  <div>
+                    <p id='board_info'></p>
+                    <p id='result_info'></p>
+                  </div>
+                </td>
+              </tr>
+            </table>
           </div>
         </td>
 

@@ -207,6 +207,9 @@ $(function() {
     // Clear any requests that are being shown
     $('#request_box').html('');
 
+    $('#top_info').show();
+    $('#board_info_td').show();
+
 
     // ----------------------------------------------------------------------------------------| INITIALIZE BOARD DATA |
     const board_size = parseInt(game_data.board_size);
@@ -255,6 +258,8 @@ $(function() {
     });
 
     $('#game').html(app.view);
+    $('#game_parent').css({ 'width': board_size * tile_size + 10 });
+
     app.ticker.add(delta => gameLoop(delta));
 
     // Graphics for the board itself
@@ -451,6 +456,64 @@ $(function() {
       if (data.game_id == game_id) {
         $('#piece_move_sound')[0].play();
 
+        let points = {};
+
+        let points_str = '';
+        for (player in data.board_info.points.points) {
+          points_str += '<span style="color: ' + colours[parseInt(player)].css_hex + ';">' + data.board_info.points.points[player] + '</span>/';
+          points[player] = { points: data.board_info.points.points[player] };
+        }
+
+        let points_potential_str = '';
+        for (player in data.board_info.points.points_potential) {
+          points_potential_str += '<span style="color: ' + colours[parseInt(player)].css_hex + ';">' + data.board_info.points.points_potential[player] + '</span>/';
+          
+          if (points[player]) {
+            points[player].points_potential = data.board_info.points.points_potential[player];
+          }
+          else {
+            points[player] = { points_potential: data.board_info.points.points_potential[player] };
+          }
+        }
+
+        $('#board_info').html(
+          '<b>Points: ' + points_str + '</b><br />' +
+          'Points Potential: ' + points_potential_str + '<br />' +
+          '<br />' +
+          '# of Regions: ' + data.board_info.n_regions
+        );
+
+        let point_potential_max = 0;
+        let point_potential_2ndmax = 0;
+
+        for (let player in points) {
+          if (points[player].points_potential > point_potential_max) {
+            point_potential_2ndmax = point_potential_max;
+            point_potential_max = points[player].points_potential;
+          };
+        }
+
+        for (let player in points) {
+          if (points[player].points > point_potential_2ndmax) {
+            let winner_name = (parseInt(player) == game_data.p1 ? game_data.p1_name : game_data.p2_name);
+            $('#result_info').text('GAME OVER - ' + winner_name + ' has won');
+          }
+          else if (points[player].points == points[player].points_potential) {
+            let winner;
+            let highest_score = 0;
+
+            for (let player in points) {
+              if (points[player].points > highest_score) {
+                winner = player;
+                highest_score = points[player].points;
+              }
+            }
+
+            let winner_name = (parseInt(winner) == game_data.p1 ? game_data.p1_name : game_data.p2_name);
+            $('#result_info').text('GAME OVER - ' + winner_name + ' has won');
+          }
+        }
+
         board = data.board;
         amazons = data.amazons;
 
@@ -478,9 +541,12 @@ $(function() {
       $('#game').unbind('click');
       $('#game').html('');
       delete app;
+      game_id = -1;
+
       $('#info').html('');
       $('#current_turn').html('');
-      game_id = -1;
+      $('#board_info').html('');
+      $('#result_info').html('');
     });
   });
 });

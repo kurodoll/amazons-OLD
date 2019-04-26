@@ -135,6 +135,9 @@ io.on('connection', function(socket) {
 
   // Syncs new board data to both players of a match
   socket.on('board', (data) => {
+    data.board_info = getBoardRegions(data.board);
+    data.board_info.points = calculatePoints(data.board, data.board_info.regions);
+
     if (sockets[games[data.game_id].p1] && sockets[games[data.game_id].p2]) {
       sockets[games[data.game_id].p1].emit('board', data);
       sockets[games[data.game_id].p2].emit('board', data);
@@ -142,8 +145,6 @@ io.on('connection', function(socket) {
   })
 
   socket.on('turn_done', (data) => {
-    let turn;
-
     if (data.player_id == games[data.game_id].turn && data.player_id == games[data.game_id].p1) {
       games[data.game_id].turn = games[data.game_id].p2;
     }
@@ -152,10 +153,10 @@ io.on('connection', function(socket) {
     }
 
     if (sockets[games[data.game_id].p1] && sockets[games[data.game_id].p2]) {
-      let data = { game_id: data.game_id, player_id: games[data.game_id].turn };
+      let send_data = { game_id: data.game_id, player_id: games[data.game_id].turn };
 
-      sockets[games[data.game_id].p1].emit('turn', data);
-      sockets[games[data.game_id].p2].emit('turn', data);
+      sockets[games[data.game_id].p1].emit('turn', send_data);
+      sockets[games[data.game_id].p2].emit('turn', send_data);
     }
   })
 
@@ -172,3 +173,131 @@ io.on('connection', function(socket) {
 http.listen(process.env.PORT || 3000, function() {
   console.log('listening on *:' + (process.env.PORT || 3000));
 });
+
+function getBoardRegions(board) {
+  let free_tiles = []
+
+  for (let x = 0; x < board.length; x++) {
+    for (let y = 0; y < board[x].length; y++) {
+      if (board[x][y].type != 'burned') {
+        free_tiles.push({ x: x, y: y, region: 0 });
+      }
+    }
+  }
+
+  let regions = 0;
+
+  while (true) {
+    let done = true;
+
+    for (let i = 0; i < free_tiles.length; i++) {
+      if (free_tiles[i].region == 0) {
+        regions += 1;
+        free_tiles[i].region = regions;
+
+        done = false;
+        break;
+      }
+    }
+
+    if (done) {
+      break;
+    }
+
+    let changed = 1;
+
+    while (changed > 0) {
+      changed = 0;
+
+      for (let i = 0; i < free_tiles.length; i++) {
+        if (free_tiles[i].region == 0) {
+          for (let j = 0; j < free_tiles.length; j++) {
+            if (free_tiles[j].region != 0) {
+              let distance_x = Math.abs(free_tiles[i].x - free_tiles[j].x);
+              let distance_y = Math.abs(free_tiles[i].y - free_tiles[j].y);
+
+              if (distance_x <= 1 && distance_y <= 1) {
+                free_tiles[i].region = free_tiles[j].region;
+                changed += 1;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    regions: free_tiles,
+    n_regions: regions };
+}
+
+function calculatePoints(board, regions) {
+  let players_present = {};
+  let region_sizes = {};
+
+  for (let i = 0; i < regions.length; i++) {
+    if (board[regions[i].x][regions[i].y].type == 'amazon') {
+      if (!players_present[regions[i].region]) {
+        players_present[regions[i].region] = []
+      }
+
+      players_present[regions[i].region].push(board[regions[i].x][regions[i].y]);
+    }
+
+    if (region_sizes[regions[i].region]) {
+      region_sizes[regions[i].region] += 1;
+    }
+    else {
+      region_sizes[regions[i].region] = 1;
+    }
+  }
+
+  let points = {};
+  let points_potential = {};
+
+  for (let region in players_present) {
+    let all_same = true;
+    let last = -1;
+
+    for (let i = 0; i < players_present[region].length; i++) {
+      if (last == -1) {
+        last = players_present[region][i].owner;
+        
+        if (points_potential[players_present[region][i].owner]) {
+          points_potential[players_present[region][i].owner] += region_sizes[region];
+        }
+        else {
+          points_potential[players_present[region][i].owner] = region_sizes[region];
+        }
+      }
+      else {
+        if (players_present[region][i].owner != last) {
+          if (points_potential[players_present[region][i].owner]) {
+            points_potential[players_present[region][i].owner] += region_sizes[region];
+          }
+          else {
+            points_potential[players_present[region][i].owner] = region_sizes[region];
+          }
+
+          all_same = false;
+          break;
+        }
+      }
+    }
+
+    if (all_same) {
+      if (points[last]) {
+        points[last] += region_sizes[region];
+      }
+      else {
+        points[last] = region_sizes[region];
+      }
+    }
+  }
+
+  return {
+    points: points,
+    points_potential: points_potential
+  }
+}
