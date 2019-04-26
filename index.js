@@ -8,6 +8,8 @@ const io = require('socket.io')(http, {
   'pingTimeout': 5000
 });
 
+const game_logic = require(__dirname + '/public/js/game_logic.js');
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 let id = 0;       // Used to keep a unique serial for each user that connects
@@ -94,42 +96,48 @@ io.on('connection', function(socket) {
     sockets[opponent_id].emit('end_game');
 
     // Init server-side game data
-    game_id = game_serial;
+    let game_id = game_serial;
     game_serial += 1;
 
-    games[game_id] = {
-      p1: user_id,
-      p2: opponent_id,
-      turn: user_id
-    };
+    let players = [ 
+      { id: user_id, username: users[user_id].username },
+      { id: opponent_id, username: users[opponent_id].username } ];
 
-    console.log('Game#' + game_id + ' created (' + users[games[game_id].p1].username + '#' + games[game_id].p1 + ' vs ' + users[games[game_id].p2].username + '#' + games[game_id].p2 + ')');
+    let added = [];
 
     // Assign pieces to the actual IDs of the players
     let pieces_fixed = JSON.parse(users[opponent_id].game_settings.pieces);
     for (let i = 0; i < pieces_fixed.length; i++) {
       if (pieces_fixed[i].owner == 0) {
-        pieces_fixed[i].owner = games[game_id].p1;
+        pieces_fixed[i].owner = players[0].id;
       }
-      else {
-        pieces_fixed[i].owner = games[game_id].p2;
+      else if (pieces_fixed[i].owner >= 998 && !added.includes(pieces_fixed[i].owner)) {
+        players.push({ id: pieces_fixed[i].owner, username: 'AI' });
+        added.push(pieces_fixed[i].owner);
+      }
+      else if (pieces_fixed[i].owner == 1) {
+        pieces_fixed[i].owner = players[1].id;
       }
     }
 
+    games[game_id] = {
+      players: players,
+      turn: user_id
+    };
+
+    console.log('Game#' + game_id + ' created (' + games[game_id].players[0].username + '#' + games[game_id].players[0].id + ' vs ' + games[game_id].players[1].username + '#' + games[game_id].players[1].id + ')');
+
     // Notify both players of the participating players' IDs, and who is starting player
-    if (sockets[games[game_id].p1] && sockets[games[game_id].p2]) {
+    if (sockets[games[game_id].players[0].id] && sockets[games[game_id].players[1].id]) {
       const game_data = {
         game_id: game_id,
-        p1: games[game_id].p1,
-        p2: games[game_id].p2,
-        p1_name: users[games[game_id].p1].username,
-        p2_name: users[games[game_id].p2].username,
-        starting_player: games[game_id].p1,
+        players: players,
+        starting_player: players[0].id,
         board_size: users[opponent_id].game_settings.board_size,
         pieces: pieces_fixed };
 
-      sockets[games[game_id].p1].emit('game_starting', game_data);
-      sockets[games[game_id].p2].emit('game_starting', game_data);
+      sockets[games[game_id].players[0].id].emit('game_starting', game_data);
+      sockets[games[game_id].players[1].id].emit('game_starting', game_data);
     }
   })
 
@@ -138,25 +146,68 @@ io.on('connection', function(socket) {
     data.board_info = getBoardRegions(data.board);
     data.board_info.points = calculatePoints(data.board, data.board_info.regions);
 
-    if (sockets[games[data.game_id].p1] && sockets[games[data.game_id].p2]) {
-      sockets[games[data.game_id].p1].emit('board', data);
-      sockets[games[data.game_id].p2].emit('board', data);
+    games[data.game_id].board_data = data;
+
+    if (sockets[games[data.game_id].players[0].id] && sockets[games[data.game_id].players[1].id]) {
+      sockets[games[data.game_id].players[0].id].emit('board', data);
+      sockets[games[data.game_id].players[1].id].emit('board', data);
     }
   })
 
   socket.on('turn_done', (data) => {
-    if (data.player_id == games[data.game_id].turn && data.player_id == games[data.game_id].p1) {
-      games[data.game_id].turn = games[data.game_id].p2;
-    }
-    else {
-      games[data.game_id].turn = games[data.game_id].p1;
+    for (let i = 0; i < games[data.game_id].players.length; i++) {
+      if (games[data.game_id].players[i].id == data.player_id) {
+        if (i + 1 < games[data.game_id].players.length) {
+          games[data.game_id].turn = games[data.game_id].players[i + 1].id;
+        }
+        else {
+          games[data.game_id].turn = games[data.game_id].players[0].id;
+        }
+      }
     }
 
-    if (sockets[games[data.game_id].p1] && sockets[games[data.game_id].p2]) {
+    while (games[data.game_id].turn >= 998) {
+      let moving_id = games[data.game_id].turn;
+
+      let moves = getAIMove(games[data.game_id].turn, games[data.game_id].board_data);
+
+      if (moves != null) {
+        let move = moves.move;
+        let burn = moves.burn;
+
+        let piece = games[data.game_id].board_data.amazons[move.piece_index];
+
+        games[data.game_id].board_data.board[move.x][move.y] = games[data.game_id].board_data.amazons[move.piece_index];
+        games[data.game_id].board_data.board[piece.x][piece.y] = { type: 'empty' };
+        games[data.game_id].board_data.board[move.x][move.y].x = move.x;
+        games[data.game_id].board_data.board[move.x][move.y].y = move.y;
+        games[data.game_id].board_data.board[burn.x][burn.y] = { type: 'burned' };
+      }
+
+      for (let i = 0; i < games[data.game_id].players.length; i++) {
+        if (games[data.game_id].players[i].id == moving_id) {
+          if (i + 1 < games[data.game_id].players.length) {
+            games[data.game_id].turn = games[data.game_id].players[i + 1].id;
+          }
+          else {
+            games[data.game_id].turn = games[data.game_id].players[0].id;
+          }
+
+          break;
+        }
+      }
+    }
+
+    if (sockets[games[data.game_id].players[0].id] && sockets[games[data.game_id].players[1].id]) {
+      sockets[games[data.game_id].players[0].id].emit('board', games[data.game_id].board_data);
+      sockets[games[data.game_id].players[1].id].emit('board', games[data.game_id].board_data);
+    }
+
+    if (sockets[games[data.game_id].players[0].id] && sockets[games[data.game_id].players[1].id]) {
       let send_data = { game_id: data.game_id, player_id: games[data.game_id].turn };
 
-      sockets[games[data.game_id].p1].emit('turn', send_data);
-      sockets[games[data.game_id].p2].emit('turn', send_data);
+      sockets[games[data.game_id].players[0].id].emit('turn', send_data);
+      sockets[games[data.game_id].players[1].id].emit('turn', send_data);
     }
   })
 
@@ -257,41 +308,30 @@ function calculatePoints(board, regions) {
   let points_potential = {};
 
   for (let region in players_present) {
-    let all_same = true;
-    let last = -1;
+    let players_counted = [];
 
     for (let i = 0; i < players_present[region].length; i++) {
-      if (last == -1) {
-        last = players_present[region][i].owner;
-        
-        if (points_potential[players_present[region][i].owner]) {
-          points_potential[players_present[region][i].owner] += region_sizes[region];
-        }
-        else {
-          points_potential[players_present[region][i].owner] = region_sizes[region];
-        }
+      if (players_counted.includes(players_present[region][i].owner)) {
+        continue;
       }
       else {
-        if (players_present[region][i].owner != last) {
-          if (points_potential[players_present[region][i].owner]) {
-            points_potential[players_present[region][i].owner] += region_sizes[region];
-          }
-          else {
-            points_potential[players_present[region][i].owner] = region_sizes[region];
-          }
+        players_counted.push(players_present[region][i].owner);
+      }
 
-          all_same = false;
-          break;
-        }
+      if (points_potential[players_present[region][i].owner]) {
+        points_potential[players_present[region][i].owner] += region_sizes[region];
+      }
+      else {
+        points_potential[players_present[region][i].owner] = region_sizes[region];
       }
     }
 
-    if (all_same) {
-      if (points[last]) {
-        points[last] += region_sizes[region];
+    if (players_counted.length == 1) {
+      if (points[players_counted[0]]) {
+        points[players_counted[0]] += region_sizes[region];
       }
       else {
-        points[last] = region_sizes[region];
+        points[players_counted[0]] = region_sizes[region];
       }
     }
   }
@@ -300,4 +340,57 @@ function calculatePoints(board, regions) {
     points: points,
     points_potential: points_potential
   }
+}
+
+function getAIMove(ai_id, board_data) {
+  let possible_moves = [];
+
+  for (let i = 0; i < board_data.amazons.length; i++) {
+    if (board_data.amazons[i].owner == ai_id) {
+      for (let j = 0; j < board_data.board_info.regions.length; j++) {
+        if (game_logic.validMove(
+          { x: board_data.amazons[i].x, y: board_data.amazons[i].y },
+          { x: board_data.board_info.regions[j].x, y: board_data.board_info.regions[j].y },
+          board_data.board
+        )) {
+          possible_moves.push({
+            x: board_data.board_info.regions[j].x,
+            y: board_data.board_info.regions[j].y,
+            piece_index: i
+          });
+        }
+      }
+    }
+  }
+
+  if (possible_moves.length == 0) {
+    return null;
+  }
+
+  let move = possible_moves[Math.floor(Math.random() * possible_moves.length)];
+  let burnable_tiles = [];
+
+  for (let j = 0; j < board_data.board_info.regions.length; j++) {
+    if (game_logic.validMove(
+      { x: move.x, y: move.y },
+      { x: board_data.board_info.regions[j].x, y: board_data.board_info.regions[j].y },
+      board_data.board
+    )) {
+      burnable_tiles.push({
+        x: board_data.board_info.regions[j].x,
+        y: board_data.board_info.regions[j].y
+      });
+    }
+  }
+
+  if (burnable_tiles.length == 0) {
+    return null;
+  }
+
+  let burn = burnable_tiles[Math.floor(Math.random() * burnable_tiles.length)];
+
+  return {
+    move: move,
+    burn: burn
+  };
 }

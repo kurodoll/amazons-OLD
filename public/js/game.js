@@ -100,100 +100,6 @@ $(function() {
 
 
   // ========================================================================================== //
-  //                                                                      Game Logic Functions //
-  // ======================================================================================== //
-
-  // Determines whether a piece can move to a certain tile
-  function validMove(from, to, board) {
-    // A piece can't move to its own tile
-    if (from.x == to.x && from.y == to.y) {
-      return false;
-    }
-
-    // Handle vertical movements (where y changes)
-    if (from.x == to.x) {
-      // Get the starting and ending y coordinates, ensuring that the start is lower than the end
-      let start = (from.y > to.y ? to.y : from.y);
-      let end = (from.y > to.y ? from.y : to.y);
-
-      // A small hack to make things work correctly
-      if (from.y < to.y) {
-        start += 1;
-        end += 1;
-      }
-
-      // Look through each tile along the path and ensure that it is empty
-      for (let i = start; i < end; i++) {
-        if (board[from.x][i].type != 'empty') {
-          return false;
-        }
-      }
-
-      // No obstacles, so the move is valid!
-      return true;
-    }
-
-    // Handle horizontal movements (where x changes)
-    if (from.y == to.y) {
-      // Get the starting and ending x coordinates, ensuring that the start is lower than the end
-      let start = (from.x > to.x ? to.x : from.x);
-      let end = (from.x > to.x ? from.x : to.x);
-
-      // A small hack to make things work correctly
-      if (from.x < to.x) {
-        start += 1;
-        end += 1;
-      }
-
-      // Look through each tile along the path and ensure that it is empty
-      for (let i = start; i < end; i++) {
-        if (board[i][from.y].type != 'empty') {
-          return false;
-        }
-      }
-
-      // No obstacles, so the move is valid!
-      return true;
-    }
-    
-    // Handle diagonal movements
-    if (Math.abs(from.x - to.x) == Math.abs(from.y - to.y)) {
-      // We iterate over the path using delta movements
-      let x_change = 1;
-      let y_change = 1;
-
-      if (from.x > to.x) {
-        x_change = -1;
-      }
-      if (from.y > to.y) {
-        y_change = -1;
-      }
-
-      let x = from.x;
-      let y = from.y;
-
-      // Look through each tile along the path and ensure that it is empty
-      while (true) {
-        x += x_change;
-        y += y_change;
-
-        if (board[x][y].type != 'empty') {
-          return false;
-        }
-
-        if (x == to.x && y == to.y) {
-          return true;
-        }
-      }
-    }
-
-    // No other movement types are valid, so this move mustn't be valid
-    return false;
-  }
-
-
-
-  // ========================================================================================== //
   //                                                                           Game Core Logic //
   // ======================================================================================== //
 
@@ -243,10 +149,12 @@ $(function() {
 
     // Set up some colours for each player
     let colours = {};
-    colours[game_data.p1] = { hex: 0x00FF88, css_hex: '#00FF88', name: 'Green' };
-    colours[game_data.p2] = { hex: 0x0088FF, css_hex: '#0088FF', name: 'Blue' };
+    colours[game_data.players[0].id] = { hex: 0x00FF88, css_hex: '#00FF88', name: 'Green' };
+    colours[game_data.players[1].id] = { hex: 0x0088FF, css_hex: '#0088FF', name: 'Blue' };
+    colours[998]                     = { hex: 0xFF0000, css_hex: '#FF0000', name: 'Red' };
+    colours[999]                     = { hex: 0xFF8800, css_hex: '#FF8800', name: 'Gold' };
 
-    let opponent_name = (id == game_data.p1 ? game_data.p2_name : game_data.p1_name);
+    let opponent_name = (id == game_data.players[0].id ? game_data.players[1].username : game_data.players[0].username);
     $('#info').html('(Game#' + game_id + ') You are player <span style="color: ' + colours[id].css_hex + ';">' + colours[id].name + '</span>, playing against ' + opponent_name + ' - ');
 
 
@@ -453,6 +361,8 @@ $(function() {
 
     // Server has sent board data, so the active user must have switched, and we need to renew our data
     socket.on('board', function(data) {
+      console.log(data);
+      console.log(game_data);
       if (data.game_id == game_id) {
         $('#piece_move_sound')[0].play();
 
@@ -484,33 +394,24 @@ $(function() {
         );
 
         let point_potential_max = 0;
-        let point_potential_2ndmax = 0;
 
         for (let player in points) {
           if (points[player].points_potential > point_potential_max) {
-            point_potential_2ndmax = point_potential_max;
             point_potential_max = points[player].points_potential;
           };
         }
-
+        console.log(points);
         for (let player in points) {
-          if (points[player].points > point_potential_2ndmax) {
-            let winner_name = (parseInt(player) == game_data.p1 ? game_data.p1_name : game_data.p2_name);
-            $('#result_info').text('GAME OVER - ' + winner_name + ' has won');
-          }
-          else if (points[player].points == points[player].points_potential) {
-            let winner;
-            let highest_score = 0;
+          if (points[player].points == points[player].points_potential && points[player].points >= point_potential_max) {
+            let winner_name;
 
-            for (let player in points) {
-              if (points[player].points > highest_score) {
-                winner = player;
-                highest_score = points[player].points;
+            for (let i = 0; i < game_data.players.length; i++) {
+              if (game_data.players[i].id == parseInt(player)) {
+                winner_name = game_data.players[i].username;
               }
             }
 
-            let winner_name = (parseInt(winner) == game_data.p1 ? game_data.p1_name : game_data.p2_name);
-            $('#result_info').text('GAME OVER - ' + winner_name + ' has won');
+            $('#result_info').html('GAME OVER - <span style="color: ' + colours[player].css_hex + ';">' + winner_name + '</span> has won');
           }
         }
 
