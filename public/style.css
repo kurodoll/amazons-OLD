@@ -1,0 +1,102 @@
+body {
+  height: 100vh;
+  background: linear-gradient(rgb(25, 50, 75), rgb(6, 12, 24));
+}
+
+div {
+  padding: 5px;
+  margin-bottom: 10px;
+
+  background: linear-gradient(90deg, rgba(0, 0, 0, .2), transparent);
+}
+
+p, pre {
+  padding: 0;
+  margin: 0;
+  margin-bottom: 5px;
+
+  font: 10px Verdana;
+  color: white;
+}
+
+pre {
+  padding: 5px;
+  background: rgba(0, 0, 0, .2);
+  font: 11px Consolas;
+}
+
+p.subdued {
+  color: rgba(255, 255, 255, .5);
+}
+
+p.note_style {
+  padding-left: 5px;
+  border-left: 1px #446688 dashed;
+}
+
+a {
+  text-decoration: none;
+  color: rgb(128, 192, 255);
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+table {
+  width: 100%;
+}
+
+td {
+  vertical-align: top;
+}
+
+input {
+  font: 10px Verdana;
+  color: white;
+}
+
+input[type=text], textarea {
+  padding: 5px;
+  margin-bottom: 5px;
+
+  background: rgba(0, 0, 0, .2);
+  border: none;
+}
+
+textarea {
+  width: 100%;
+  height: 110px;
+
+  font: 11px Consolas;
+  color: white;
+}
+
+input[type=text]:hover, textarea:hover {
+  background: rgba(0, 0, 0, .5)
+}
+
+input[type=submit] {
+  padding: 4px;
+  padding-left: 20px;
+  padding-right: 20px;
+
+  background: rgba(0, 0, 0, .2);
+  border: 1px grey solid;
+
+  cursor: pointer;
+}
+
+input[type=submit]:hover {
+  background: rgba(255, 128, 0, .1);
+  border: 1px orange solid;
+}
+
+hr {
+  width: 60%;
+  margin: 0;
+  margin-bottom: 5px;
+
+  border: none;
+  border-bottom: 1px #446688 dashed;
+}

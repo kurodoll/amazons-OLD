@@ -36,6 +36,10 @@ app.get('/', function(req, res) {
   res.sendFile(__dirname + '/index.html');
 });
 
+app.get('/rulesets', function(req, res) {
+  res.sendFile(__dirname + '/rulesets.html');
+});
+
 io.on('connection', function(socket) {
   // "Generate" an ID for this user
   const user_id = id;
@@ -51,15 +55,21 @@ io.on('connection', function(socket) {
 
   // User has submitted a username for themself
   socket.on('username', (username) => {
-    // Initialize user's information
-    users[user_id] = {}
+    if (!users[user_id]) {
+      // Initialize user's information
+      users[user_id] = {}
+    }
+
     users[user_id].username = username;
     sockets[user_id] = socket;
 
     io.emit('users', users); // Send the updated user list out to all connected users
 
     // Game settings management
-    users[user_id].game_settings = default_game_settings;
+    if (!users[user_id].game_settings) {
+      users[user_id].game_settings = default_game_settings;
+    }
+
     socket.emit('game_settings', users[user_id].game_settings);
   })
 
