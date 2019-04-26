@@ -14,6 +14,10 @@ let id = 0;       // Used to keep a unique serial for each user that connects
 let users = {};   // Stores user information, with their id as the key
 let sockets = {}; // Stores client sockets, again with user id as the key
 
+// Game state information for games
+let games = {};
+let game_serial = 0;
+
 let default_game_settings = {
   board_size: 10,
   pieces: JSON.stringify([
@@ -39,10 +43,6 @@ io.on('connection', function(socket) {
 
   // Send the user their ID
   socket.emit('id', user_id);
-
-  // Game state information for when a game begins
-  let player1_id;
-  let player2_id;
 
   // Latency test
   socket.on('ping', function(start_time) {
@@ -80,67 +80,72 @@ io.on('connection', function(socket) {
   socket.on('accept_play', (opponent_id) => {
     opponent_id = parseInt(opponent_id);
 
-    player1_id = user_id;
-    player2_id = opponent_id;
-    turn = player1_id;
+    socket.emit('end_game');
+    sockets[opponent_id].emit('end_game');
 
+    // Init server-side game data
+    game_id = game_serial;
+    game_serial += 1;
+
+    games[game_id] = {
+      p1: user_id,
+      p2: opponent_id,
+      turn: user_id
+    };
+
+    console.log('Game#' + game_id + ' created (' + users[games[game_id].p1].username + '#' + games[game_id].p1 + ' vs ' + users[games[game_id].p2].username + '#' + games[game_id].p2 + ')');
+
+    // Assign pieces to the actual IDs of the players
     let pieces_fixed = JSON.parse(users[opponent_id].game_settings.pieces);
     for (let i = 0; i < pieces_fixed.length; i++) {
       if (pieces_fixed[i].owner == 0) {
-        pieces_fixed[i].owner = player1_id;
+        pieces_fixed[i].owner = games[game_id].p1;
       }
       else {
-        pieces_fixed[i].owner = player2_id;
+        pieces_fixed[i].owner = games[game_id].p2;
       }
     }
 
     // Notify both players of the participating players' IDs, and who is starting player
-    if (sockets[player1_id] && sockets[player2_id]) {
-      sockets[player1_id].emit('game_starting', {
-        p1: player1_id,
-        p2: player2_id,
-        opponent_name: users[player2_id].username,
-        starting_player: turn,
+    if (sockets[games[game_id].p1] && sockets[games[game_id].p2]) {
+      const game_data = {
+        game_id: game_id,
+        p1: games[game_id].p1,
+        p2: games[game_id].p2,
+        p1_name: users[games[game_id].p1].username,
+        p2_name: users[games[game_id].p2].username,
+        starting_player: games[game_id].p1,
         board_size: users[opponent_id].game_settings.board_size,
-        pieces: pieces_fixed });
+        pieces: pieces_fixed };
 
-      sockets[player2_id].emit('game_starting', {
-        p1: player1_id,
-        p2: player2_id,
-        opponent_name: users[player1_id].username,
-        starting_player: turn,
-        board_size: users[opponent_id].game_settings.board_size,
-        pieces: pieces_fixed });
+      sockets[games[game_id].p1].emit('game_starting', game_data);
+      sockets[games[game_id].p2].emit('game_starting', game_data);
     }
-  })
-
-  // Used to sync who is player 1 and who is player 2 between both players of a match
-  socket.on('set_players', (game_data) => {
-    player1_id = game_data.p1;
-    player2_id = game_data.p2;
   })
 
   // Syncs new board data to both players of a match
-  socket.on('board', (board) => {
-    if (sockets[player1_id] && sockets[player2_id]) {
-      sockets[player1_id].emit('board', board);
-      sockets[player2_id].emit('board', board);
+  socket.on('board', (data) => {
+    if (sockets[games[data.game_id].p1] && sockets[games[data.game_id].p2]) {
+      sockets[games[data.game_id].p1].emit('board', data);
+      sockets[games[data.game_id].p2].emit('board', data);
     }
   })
 
-  socket.on('turn_done', (player_id) => {
+  socket.on('turn_done', (data) => {
     let turn;
 
-    if (player_id == player1_id) {
-      turn = player2_id;
+    if (data.player_id == games[data.game_id].turn && data.player_id == games[data.game_id].p1) {
+      games[data.game_id].turn = games[data.game_id].p2;
     }
     else {
-      turn = player1_id;
+      games[data.game_id].turn = games[data.game_id].p1;
     }
 
-    if (sockets[player1_id] && sockets[player2_id]) {
-      sockets[player1_id].emit('turn', turn);
-      sockets[player2_id].emit('turn', turn);
+    if (sockets[games[data.game_id].p1] && sockets[games[data.game_id].p2]) {
+      let data = { game_id: data.game_id, player_id: games[data.game_id].turn };
+
+      sockets[games[data.game_id].p1].emit('turn', data);
+      sockets[games[data.game_id].p2].emit('turn', data);
     }
   })
 
